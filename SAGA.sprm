@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<parameters name="Create Chart Layer (bars/sectors)">
+  <DATA type="shapes" id="INPUT" name="Shapes">NOT SET</DATA>
+  <OPTION type="table_field" id="SIZE" name="Size field" index="-1">&lt;no attributes&gt;</OPTION>
+  <OPTION type="double" id="MAXSIZE" name="Maximum size">100.000000</OPTION>
+  <OPTION type="double" id="MINSIZE" name="Minimum size">10.000000</OPTION>
+  <OPTION type="choice" id="TYPE" name="Type" index="0">Sectors</OPTION>
+</parameters>
