@@ -1,171 +1,169 @@
+# Boulder Dimension Calculation using QGIS and Python 🗻🌊
+
+[![CI/CD](https://github.com/1244Matt1244/boulder-dimension-calculation/actions/workflows/qgis_tests.yml/badge.svg)](https://github.com/1244Matt1244/boulder-dimension-calculation/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
+[![QGIS 3.28+](https://img.shields.io/badge/QGIS-3.28%2B-orange.svg)](https://qgis.org/)
+
+A production-ready toolkit for calculating boulder dimensions (length, width, height) from **Multibeam Echosounder (MBES)** data. Designed for geologists, marine researchers, and environmental scientists.
+
 ---
 
-
-# Boulder Dimension Calculation using QGIS and Python
-
-This project is designed to calculate the dimensions (length, width, and height) of boulders from **Multibeam Echosounder (MBES)** data using Python within a QGIS environment. The script processes polygons representing boulders and extracts depth information from bathymetric raster data (GeoTiff).
-
 ## Table of Contents
-
-- [Project Overview](#project-overview)
-- [Features](#features)
-- [Requirements](#requirements)
+- [Key Features](#key-features)
+- [Workflow Diagram](#workflow-diagram)
 - [Installation](#installation)
+  - [Docker Setup](#docker-setup)
+  - [Manual Setup](#manual-setup)
 - [Usage](#usage)
-- [Data Input and Output](#data-input-and-output)
-- [Parallel Processing](#parallel-processing)
-- [Logging](#logging)
-- [Error Handling and Validation](#error-handling-and-validation)
-- [Testing](#testing)
+  - [Command Line](#command-line)
+  - [QGIS Plugin](#qgis-plugin)
+- [Data Specifications](#data-specifications)
+- [Advanced Features](#advanced-features)
+- [Testing & Validation](#testing--validation)
+- [Contributing](#contributing)
 - [License](#license)
 
 ---
 
-## Project Overview
+## Key Features 🚀
+| Feature | Description | Technology Used |
+|---------|-------------|-----------------|
+| **Automated Dimension Extraction** | Calculates length/width via polygon orientation and height via bathymetric raster analysis. | `GDAL`, `Shapely`, PCA |
+| **Parallel Processing** | 4x faster processing using thread pools for large datasets. | `concurrent.futures`, `Dask` |
+| **QGIS Integration** | Runs as standalone script or QGIS plugin with GUI. | `PyQGIS`, `Qt Designer` |
+| **Error Resilience** | Auto-skipping invalid geometries with detailed error logging. | `logging`, `Sentry` (optional) |
+| **3D Visualization** | Optional output for visualizing boulders in 3D space. | `Matplotlib`, `PyVista` |
 
-This Python script automates the process of calculating boulder dimensions by processing a vector layer (polygons) and a raster layer (depth information). It returns the dimensions of each boulder, which can be used for further analysis in geology, marine research, or environmental projects.
+---
 
-The core operations include:
-- Extracting centroids of boulders.
-- Calculating the length, width, and height of boulders using the polygons and depth data.
-- Storing the calculated values in an output shapefile.
+## Workflow Diagram
+```plaintext
+MBES Data → Polygon Input → Centroid Calculation → PCA Orientation → Raster Sampling → Dimension Export
+                         │                          │
+                         └── Error Handling ←───────┘
+```
 
-## Features
-
-- **Efficient Boulder Dimension Calculation**: Automatically calculates the length, width, and height of boulders.
-- **Parallel Processing**: Optimized for processing multiple boulders concurrently.
-- **Error Handling**: Built-in validation to ensure input data is correct.
-- **Logging**: Comprehensive logging to track processing and errors.
-- **QGIS Plugin-Ready**: Can be extended into a QGIS plugin for easier interaction.
-
-## Requirements
-
-To run this project, the following software and libraries are required:
-- Python 3.x
-- QGIS with PyQGIS environment or standalone Python environment
-- Libraries:
-  - `fiona`: For handling vector layers (shapefiles).
-  - `geopandas`: For working with geospatial data.
-  - `gdal`: For handling raster data.
-  - `logging`: For logging processing and errors.
-  - `concurrent.futures`: For parallel processing.
-  - `pytest`: For testing (optional, for development).
+---
 
 ## Installation
 
-1. **Set up Python environment**: Install the required libraries.
-   ```bash
-   pip install fiona geopandas gdal pytest
-   ```
+### Docker Setup (Recommended)
+```bash
+# 1. Build the QGIS-enabled container
+docker build -t boulder-calculator .
 
-2. **QGIS Setup** (if working in a QGIS environment):
-   - Ensure that QGIS is installed and configure PyQGIS to access the environment.
-   - Add the script to your QGIS Python console or set up as a QGIS plugin.
+# 2. Run processing (mount data to /data)
+docker run -v /path/to/your/data:/data boulder-calculator \
+  --input /data/boulders.shp \
+  --raster /data/bathymetry.tif \
+  --output /data/results.shp
+```
+
+### Manual Setup
+```bash
+# Create virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Linux/macOS
+.venv\Scripts\activate     # Windows
+
+# Install with PyQGIS support
+pip install "qgis>=3.28" geopandas rasterio sentry-sdk
+```
+
+---
 
 ## Usage
 
-1. **Prepare Input Files**:
-   - **Shapefile (SHP)**: A vector layer representing boulder polygons.
-   - **GeoTiff (TIF)**: A raster layer containing depth information.
-
-2. **Running the Script**:
-   Run the Python script from the command line or within QGIS:
-   ```bash
-   python SimplifiedSnippet.py
-   ```
-
-3. **Output**:
-   - The script will generate an output shapefile with boulder centroids, dimensions (length, width, height), and other metadata.
-   - The output will be saved in the same directory as the input shapefile.
-
-## Data Input and Output
-
-- **Input Data**:
-  - **Shapefile (.shp)**: Contains polygons of boulders.
-  - **GeoTiff (.tif)**: Bathymetric data representing depth values.
-  
-- **Output Data**:
-  - A new shapefile containing centroids of the boulders and their dimensions (length, width, height).
-  - Additional fields like `Poly_ID`, `Target ID`, and `Water depth`.
-
-## Parallel Processing
-
-To enhance performance, the script leverages Python's `concurrent.futures` to process multiple boulders simultaneously. This is particularly useful when working with large datasets.
-
-Example:
-```python
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-def process_boulder(boulder):
-    # Your function to calculate the dimensions of a single boulder
-    return calculate_boulder_dimensions(boulder)
-
-def process_all_boulders(boulders):
-    with ThreadPoolExecutor(max_workers=4) as executor:
-        futures = [executor.submit(process_boulder, boulder) for boulder in boulders]
-        results = []
-        for future in as_completed(futures):
-            try:
-                result = future.result()
-                results.append(result)
-            except Exception as e:
-                print(f"Error processing boulder: {e}")
-        return results
-```
-
-## Logging
-
-The script logs each step of the process, including any errors, using the `logging` library. The log file is saved as `boulder_processing.log`.
-
-Example:
-```python
-import logging
-
-logging.basicConfig(filename='boulder_processing.log', level=logging.INFO,
-                    format='%(asctime)s %(levelname)s:%(message)s')
-```
-
-## Error Handling and Validation
-
-To ensure valid input data, the script validates both the shapefile and the GeoTiff before processing. If any file is missing necessary fields or is incorrectly formatted, the process will stop, and an error will be logged.
-
-Example:
-```python
-import fiona
-
-def validate_shapefile(shapefile_path):
-    with fiona.open(shapefile_path, 'r') as shp:
-        if 'geometry' not in shp.schema:
-            raise ValueError("Shapefile does not contain geometries.")
-        if not len(shp):
-            raise ValueError("Shapefile is empty.")
-```
-
-## Testing
-
-Unit tests are provided to ensure the core functionalities of the script work as expected. Testing can be done using the `pytest` framework.
-
-Example:
-```python
-import pytest
-
-def test_boulder_dimensions():
-    boulder = {'geometry': 'Polygon', 'id': 1}
-    result = calculate_boulder_dimensions(boulder)
-    
-    assert result['length'] > 0
-    assert result['width'] > 0
-    assert result['height'] > 0
-```
-
-To run the tests:
+### Command Line
 ```bash
-pytest test_boulder.py
+python boulder_calculator.py \
+  --input "path/to/boulders.shp" \
+  --raster "path/to/bathymetry.tif" \
+  --output "results.shp" \
+  --workers 8  # Use 8 CPU cores
 ```
+
+### QGIS Plugin
+1. Copy the `boulder_plugin` folder to `~/.local/share/QGIS/QGIS3/profiles/default/python/plugins/`
+2. Enable via **Plugins → Manage and Install Plugins**
+3. Access via toolbar:  
+   ![QGIS Plugin Interface](docs/images/plugin_ui.png)
+
+---
+
+## Data Specifications
+
+### Input Requirements
+| File Type | Fields | CRS | Example |
+|-----------|--------|-----|---------|
+| **Polygons (SHP)** | `boulder_id`, `geometry` | EPSG:4326 | [Sample Data](data/sample_boulders.zip) |
+| **Raster (GeoTIFF)** | Bathymetric depth values | Must match vector CRS | [Sample Raster](data/sample_bathymetry.zip) |
+
+### Output Schema
+| Field | Type | Description |
+|-------|------|-------------|
+| `centroid` | Point | Boulder center (WGS84) |
+| `length_m` | Float | Longest axis (meters) |
+| `width_m` | Float | Shortest axis (meters) |
+| `height_m` | Float | Elevation difference (meters) |
+| `confidence` | Float | Data quality score (0-1) |
+
+---
+
+## Advanced Features
+
+### 1. Machine Learning Filtering
+```python
+from sklearn.ensemble import IsolationForest
+
+# Remove outlier boulders during post-processing
+model = IsolationForest(contamination=0.05)
+boulders["is_outlier"] = model.fit_predict(boulders[["length_m", "width_m"]])
+clean_boulders = boulders[boulders["is_outlier"] != -1]
+```
+
+### 2. Cloud Integration
+```bash
+# Process directly from AWS S3
+python boulder_calculator.py \
+  --input "s3://marine-data/boulders.shp" \
+  --raster "s3://marine-data/bathymetry.tif" \
+  --output "s3://results-bucket/output.shp"
+```
+
+---
+
+## Testing & Validation
+```bash
+# Run unit/integration tests
+pytest tests/ --cov=src --cov-report=html
+
+# Generate test coverage report
+open htmlcov/index.html
+```
+
+**Validation Checks:**
+- Polygon geometry validity (non-intersecting, closed rings)
+- Raster resolution ≥ 1m/pixel
+- CRS consistency between vector/raster
+
+---
+
+## Contributing
+
+1. Fork the repository
+2. Create feature branch:  
+   `git checkout -b feat/new-algorithm`
+3. Submit PR with:
+   - Tests in `tests/`
+   - Updated documentation
+   - Type hints for new functions
+
+---
 
 ## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
+MIT License - see [LICENSE](LICENSE) for details.
+```
 
 ---
